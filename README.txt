@@ -1,5 +1,5 @@
 REPLICATION PACKAGE
-Aid, Lending, and TRIPS-plus Commitments
+Aid, Lending, and TRIPS
 
 This package replicates the empirical analysis for the paper on how US foreign
 aid and IFC lending shape developing-country TRIPS-plus intellectual property

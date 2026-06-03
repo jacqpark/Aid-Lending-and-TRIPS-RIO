@@ -1,6 +1,6 @@
 # Replication Package
 
-## Aid, Lending, and TRIPS-plus Commitments
+## Aid, Lending, and TRIPS
 
 This package replicates the empirical analysis for the paper on how US foreign aid and IFC lending shape developing-country TRIPS-plus intellectual property commitments. The analysis measures US trade pressure with DeBERTa stance scores drawn from National Trade Estimate reports. It then estimates how aid (in democracies) and IFC investment (in non-democracies) moderate the effect of that pressure on undisclosed information, patent, and enforcement provisions.
 

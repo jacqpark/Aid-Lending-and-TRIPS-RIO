@@ -91,7 +91,7 @@ IFC_invest_svcs.csv
 dist_cepii.xls
   Producer. CEPII, GeoDist database.
   Citation. Mayer, Thierry, and Soledad Zignago. 2011. "Notes on CEPII's
-    distances measures. The GeoDist database." CEPII Working Paper No. 2011-25.
+    distances measures: The GeoDist database." CEPII Working Paper No. 2011-25.
   Access. https://www.cepii.fr/cepii/en/bdd_modele/bdd_modele_item.asp?id=6
   License. Etalab Open Licence 2.0, which permits redistribution including
     modification, with attribution.
@@ -120,7 +120,7 @@ DESTA
     obtains DESTA through the desta R package, so no DESTA file is shipped in
     this package.
   Citation. Dur, Andreas, Leonardo Baccini, and Manfred Elsig. 2014. "The design
-    of international trade agreements. Introducing a new dataset." The Review of
+    of international trade agreements: Introducing a new dataset." The Review of
     International Organizations 9(3), 353-375. DOI 10.1007/s11558-013-9179-8.
   Access. https://www.designoftradeagreements.org/downloads/ and the desta R
     package.
@@ -159,7 +159,7 @@ TRIPSplus.xlsx
   Producer. Jean-Frederic Morin and Jenny Surbeck, TRIPs-plus PTA dataset. This
     file defines the paper's TRIPS-plus dependent variables.
   Citation. Morin, Jean-Frederic, and Jenny Surbeck. 2020. "Mapping the New
-    Frontier of International IP Law. Introducing a TRIPs-plus Dataset." World
+    Frontier of International IP Law: Introducing a TRIPs-plus Dataset." World
     Trade Review 19(1), 109-122. DOI 10.1017/S1474745618000460.
   Access. Downloaded from the DESTA downloads page at
     https://www.designoftradeagreements.org/downloads/, which distributes the
