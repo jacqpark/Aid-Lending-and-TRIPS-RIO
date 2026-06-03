@@ -1,0 +1,19 @@
+DATAVERSE DATASET DESCRIPTION
+
+Paste the text below into the Description field of the Harvard Dataverse dataset.
+
+------------------------------------------------------------
+
+Replication package for "Aid, Lending, and TRIPS-plus Commitments." The study
+examines how the United States uses development finance to diffuse TRIPS-plus
+intellectual property standards. It measures US trade pressure with a DeBERTa
+stance-detection score built from National Trade Estimate reports. It then
+estimates how bilateral aid in democracies and International Finance Corporation
+lending in autocracies moderate the effect of that pressure on the number of
+undisclosed information, patent, and enforcement provisions in partner
+countries' preferential trade agreements. The package contains the analysis
+script, an offline reproduction script, the merged analysis dataset, a saved R
+workspace, and the regenerated tables and figures. Four third-party data files
+are not re-hosted here because of redistribution terms or file size. Each is
+documented with download instructions and a citation. See README.txt and
+DATA_SOURCES.txt for full provenance and run instructions.

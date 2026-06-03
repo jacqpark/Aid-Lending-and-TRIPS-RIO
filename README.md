@@ -86,6 +86,5 @@ The reproduction script writes figures into the `figures/` subfolder.
 
 - `fig_marg_aid_undisclosed.png`, `fig_marg_aid_patent.png`, `fig_marg_aid_enforcement.png`. The marginal-effects plots for Aid x Democracy across the three outcomes.
 - `fig_marg_ifc_undisclosed.png`, `fig_marg_ifc_patent.png`, `fig_marg_ifc_enforcement.png`. The marginal-effects plots for IFC x Non-democracy across the three outcomes.
-- `fig_deberta_china.png`, `fig_deberta_japan.png`, `fig_deberta_eu.png`, `fig_deberta_mexico.png`, `fig_deberta_canada.png`, `fig_deberta_keycountries.png`. Descriptive DeBERTa score trend plots.
 
 The Korea and Japan NTE report images and the cross-validation figures in the manuscript are produced outside this R package and are not regenerated here.

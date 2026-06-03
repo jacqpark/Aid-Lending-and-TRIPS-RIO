@@ -276,52 +276,6 @@ fig_dir <- "figures"
 if (!dir.exists(fig_dir)) dir.create(fig_dir)
 fp <- function(f) file.path(fig_dir, f)
 
-# The single-country and key-countries chunks use the object `df` in the Rmd
-# (the unfiltered NTE panel), whose `country` column is upper-case. In
-# analysis_data.csv the same column is title-case (China, European Union, ...).
-# Match on an upper-cased helper so the Rmd's upper-case country literals select
-# exactly the same rows.
-df <- temp
-df$country_u <- toupper(df$country)
-
-# ---- 5a. Five single-country DeBERTa trend plots (base-R plot) ----------
-single_country_plots <- list(
-  china  = list(name = "CHINA",          file = "fig_deberta_china.png"),
-  japan  = list(name = "JAPAN",          file = "fig_deberta_japan.png"),
-  eu     = list(name = "EUROPEAN UNION", file = "fig_deberta_eu.png"),
-  mexico = list(name = "MEXICO",         file = "fig_deberta_mexico.png"),
-  canada = list(name = "CANADA",         file = "fig_deberta_canada.png")
-)
-
-for (sp in single_country_plots) {
-  cdf <- df %>% filter(country_u == sp$name)
-  png(fp(sp$file), width = 1200, height = 800, res = 150)
-  plot(cdf$year, cdf$deberta_score, type = "b", pch = 16)
-  dev.off()
-  cat("Wrote", fp(sp$file), "\n")
-}
-
-# ---- 5b. Key-countries trend ggplot (ctyplotdt chunk) -------------------
-ctyplotdt <- df %>%
-  distinct(country, year, .keep_all = TRUE) %>%
-  arrange(country, year) %>%
-  group_by(country) %>%
-  mutate(cumcount = n()) %>%
-  filter(
-           country_u == "RUSSIA" |
-           country_u == "CHINA" | country_u == "EUROPEAN UNION" |
-           country_u == "BRAZIL" | country_u == "JAPAN" |
-           country_u == "INDIA" | country_u == "MEXICO" )
-
-p_keycountries <- ggplot(data = ctyplotdt,
-       aes(x = year, y = deberta_score, color = country)) + geom_smooth(se = FALSE) +
-  labs(x = "Year", y = "DeBERTa score", color = "Country") + scale_color_manual(
-    values = c("red", "orange", "green", "steelblue", "cyan", "yellow", "magenta")
-  ) + theme_minimal()
-
-ggsave(filename = fp("fig_deberta_keycountries.png"), plot = p_keycountries,
-       width = 7, height = 5, dpi = 300)
-cat("Wrote", fp("fig_deberta_keycountries.png"), "\n")
 
 # ---- 5c. Rug-data subsets (obs actually used in each model) -------------
 # Reconstruct exactly as the Rmd: the model's filtered data, then the rows
