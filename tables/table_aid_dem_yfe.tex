@@ -1,0 +1,47 @@
+
+\begingroup
+\centering
+\begin{tabular}{lccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variables:                  & ipr\_tripsplus\_undisclosed\_information    & ipr\_tripsplus\_patents   & ipr\_tripsplus\_enforcement\\    
+   Model:                                & (1)                                         & (2)                       & (3)\\  
+   \midrule
+   \emph{Variables}\\
+   ldeberta\_score                       & 0.663$^{***}$                               & 0.399$^{**}$              & 1.95$^{***}$\\   
+                                         & (0.078)                                     & (0.160)                   & (0.580)\\   
+   laid\_usd                             & 0.033                                       & -0.006                    & 0.040\\   
+                                         & (0.020)                                     & (0.036)                   & (0.131)\\   
+   log\_gdppc                            & 0.820                                       & 2.55                      & 7.93\\   
+                                         & (2.00)                                      & (3.39)                    & (12.0)\\   
+   log\_gdpcons                          & -1.36                                       & -2.34                     & -8.16\\   
+                                         & (1.67)                                      & (3.05)                    & (10.6)\\   
+   gdpgrowth                             & 0.003                                       & 0.016                     & 0.031\\   
+                                         & (0.014)                                     & (0.021)                   & (0.073)\\   
+   log\_import                           & -0.007                                      & -0.389                    & -1.01\\   
+                                         & (0.184)                                     & (0.349)                   & (1.13)\\   
+   log\_export                           & 0.152                                       & 0.250                     & 0.762\\   
+                                         & (0.320)                                     & (0.552)                   & (1.89)\\   
+   usbit                                 & 0.798$^{**}$                                & 2.46$^{***}$              & 7.03$^{***}$\\   
+                                         & (0.330)                                     & (0.820)                   & (2.49)\\   
+   isds\_occurrences                     & 0.602                                       & 0.638$^{**}$              & 2.42$^{**}$\\   
+                                         & (0.365)                                     & (0.273)                   & (1.15)\\   
+   unga\_dist                            & -0.030                                      & -0.480                    & -1.25\\   
+                                         & (0.278)                                     & (0.465)                   & (1.51)\\   
+   ldeberta\_score $\times$ laid\_usd    & -0.034$^{***}$                              & -0.018$^{*}$              & -0.094$^{***}$\\   
+                                         & (0.005)                                     & (0.009)                   & (0.032)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   iso3c                                 & Yes                                         & Yes                       & Yes\\  
+   year                                  & Yes                                         & Yes                       & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations                          & 738                                         & 738                       & 738\\  
+   R$^2$                                 & 0.60958                                     & 0.72653                   & 0.70811\\  
+   Within R$^2$                          & 0.13326                                     & 0.12437                   & 0.11630\\  
+   \midrule \midrule
+   \multicolumn{4}{l}{\emph{Clustered (iso3c) standard-errors in parentheses}}\\
+   \multicolumn{4}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+\par\endgroup
+
+

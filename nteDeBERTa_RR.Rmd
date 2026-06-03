@@ -1,0 +1,1655 @@
+---
+title: "Untitled"
+author: "Jacqueline Park"
+date: "2025-03-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+rm(list=ls())
+library(readr)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(countrycode)
+library(WDI)
+library(fixest)
+library(marginaleffects)
+library(desta)
+# library(plotly) # for 3D plots
+
+```
+
+
+
+# Load the data
+```{r}
+df = read.csv("NTE_IPR_final_v2.csv")
+```
+
+
+# Descriptive works
+## China's score trend
+```{r}
+chinadf = df %>% filter(country == "CHINA")
+plot(chinadf$year, chinadf$deberta_score, type = "b", pch = 16)
+```
+
+
+## Japan's score trend
+```{r}
+japdf = df %>% filter(country == "JAPAN")
+plot(japdf$year, japdf$deberta_score, type = "b", pch = 16)
+```
+
+
+## EU's score trend
+```{r}
+eudf = df %>% filter(country == "EUROPEAN UNION")
+plot(eudf$year, eudf$deberta_score, type = "b", pch = 16)
+```
+
+
+## Mexico's score trend
+```{r}
+mexdf = df %>% filter(country == "MEXICO")
+plot(mexdf$year, mexdf$deberta_score, type = "b", pch = 16)
+```
+
+
+## Canada's score trend
+```{r}
+candf = df %>% filter(country == "CANADA")
+plot(candf$year, candf$deberta_score, type = "b", pch = 16)
+```
+
+
+
+## Key countries' trend in glance
+```{r}
+ctyplotdt = df %>%
+  distinct(country, year, .keep_all = T) %>%
+  arrange(country, year) %>%
+  group_by(country) %>%
+  mutate(cumcount = n()) %>%
+  filter(
+           country == "RUSSIA" |
+           country == "CHINA" | country == "EUROPEAN UNION" | 
+           country == "BRAZIL" | country == "JAPAN" |
+           country == "INDIA" | country == "MEXICO" )
+
+ggplot(data = ctyplotdt,
+       aes(x = year, y = deberta_score, color = country)) + geom_smooth(se=F) +
+  labs(x = "Year", y = "DeBERTa score", color = "Country") + scale_color_manual(
+    values = c("red", "orange", "green", "steelblue", "cyan", "yellow", "magenta")
+  ) + theme_minimal()
+
+```
+
+
+
+# Data prep for analysis
+## Basics (PTA, BIT, OECD)
+```{r}
+## subset data
+bertdf = df %>% select(-text)
+
+## US PTA
+bertdf$uspta = ifelse(bertdf$country=="AUSTRALIA" & bertdf$year>=2004|
+                     bertdf$country=="BAHRAIN" & bertdf$year>=2004|
+                     bertdf$country=="COSTA RICA" & bertdf$year>=2004|
+                     bertdf$country=="EL SALVADOR" & bertdf$year>=2004|
+                     bertdf$country=="GUATEMALA" & bertdf$year>=2004|
+                     bertdf$country=="HONDURAS" & bertdf$year>=2004|
+                     bertdf$country=="NICARAGUA" & bertdf$year>=2004|
+                     bertdf$country=="DOMINICAN REPUBLIC" & bertdf$year>=2004|
+                     bertdf$country=="CHILE" & bertdf$year>=2003|
+                     bertdf$country=="COLOMBIA" & bertdf$year>=2006|
+                     bertdf$country=="ISRAEL" & bertdf$year>=1985|
+                     bertdf$country=="JORDAN" & bertdf$year>=2000|
+                     bertdf$country=="KOREA" & bertdf$year>=2007|
+                     bertdf$country=="MOROCCO" & bertdf$year>=2004|
+                     bertdf$country=="CANADA" & bertdf$year>=1992|
+                     bertdf$country=="MEXICO" & bertdf$year>=1992|
+                     bertdf$country=="OMAN" & bertdf$year>=2006|
+                     bertdf$country=="PANAMA" & bertdf$year>=2007|
+                     bertdf$country=="PERU" & bertdf$year>=2006|
+                     bertdf$country=="SINGAPORE" & bertdf$year>=2003|
+                     bertdf$country=="CHINA" & bertdf$year>=2020|
+                     bertdf$country=="VIETNAM" & bertdf$year>=2000, 1, 0)
+
+## US BITs
+bertdf$usbit = ifelse(bertdf$country=="ALBANIA" & bertdf$year>=1995|
+                     bertdf$country=="ALGERIA" & bertdf$year>=2001|
+                     bertdf$country=="ARGENTINA" & bertdf$year>=1991|
+                     bertdf$country=="ARMENIA" & bertdf$year>=1992|
+                     bertdf$country=="AZERBAIJAN" & bertdf$year>=1997|
+                     bertdf$country=="BAHRAIN" & bertdf$year>=1999|
+                     bertdf$country=="BANGLADESH" & bertdf$year>=1986|
+                     bertdf$country=="BELARUS" & bertdf$year>=1994|
+                     bertdf$country=="BOLIVIA" & bertdf$year>=1998|
+                     bertdf$country=="BULGARIA" & bertdf$year>=1993|
+                     bertdf$country=="CAMEROON" & bertdf$year>=1986|
+                     bertdf$country=="COSTA RICA" & bertdf$year>=1995|
+                     bertdf$country=="CONGO" & bertdf$year>=1994|
+                     bertdf$country=="DOMINICAN REPUBLIC" & bertdf$year>=2005|
+                     bertdf$country=="ECUADOR" & bertdf$year>=1993|
+                     bertdf$country=="EGYPT" & bertdf$year>=1986|
+                     bertdf$country=="GEORGIA" & bertdf$year>=1994|
+                     bertdf$country=="GHANA" & bertdf$year>=1998|
+                     bertdf$country=="GUATEMALA" & bertdf$year>=1986|
+                     bertdf$country=="HAITI" & bertdf$year>=1983|
+                     bertdf$country=="HONDURAS" & bertdf$year>=2001|
+                     bertdf$country=="JAMAICA" & bertdf$year>=1994|
+                     bertdf$country=="JORDAN" & bertdf$year>=1997|
+                     bertdf$country=="KAZAKHSTAN" & bertdf$year>=1994|
+                     bertdf$country=="KENYA" & bertdf$year>=2000|
+                     bertdf$country=="KYRGYZSTAN" & bertdf$year>=1993|
+                     bertdf$country=="NICARAGUA" & bertdf$year>=1995|
+                     bertdf$country=="PANAMA" & bertdf$year>=1982|
+                     bertdf$country=="PARAGUAY" & bertdf$year>=1991|
+                     bertdf$country=="PHILIPPINES" & bertdf$year>=1989|
+                     bertdf$country=="POLAND" & bertdf$year>=1990|
+                     bertdf$country=="ROMANIA" & bertdf$year>=1994|
+                     bertdf$country=="SRI LANKA" & bertdf$year>=1991|
+                     bertdf$country=="TUNISIA" & bertdf$year>=1990|
+                     bertdf$country=="TURKEY" & bertdf$year>=1985|
+                     bertdf$country=="UKRAINE" & bertdf$year>=1994|
+                     bertdf$country=="UZBEKISTAN" & bertdf$year>=1994, 1, 0)
+
+## OECD bf 1994 status
+bertdf$oecd1994 = ifelse(bertdf$country=="AUSTRIA"|bertdf$country=="BELGIUM"|
+                        bertdf$country=="CANADA"|bertdf$country=="DENMARK"|
+                        bertdf$country=="FRANCE"|bertdf$country=="GERMANY"|
+                        bertdf$country=="GREECE"|bertdf$country=="ICELAND"|
+                        bertdf$country=="IRELAND"|bertdf$country=="ITALY"|
+                        bertdf$country=="LUXEMBOURG"|
+                          bertdf$country=="NETHERLANDS"|
+                        bertdf$country=="NORWAY"|bertdf$country=="PORTUGAL"|
+                        bertdf$country=="SPAIN"|bertdf$country=="SWEDEN"|
+                        bertdf$country=="SWITZERLAND"|bertdf$country=="TURKEY"|
+                        bertdf$country=="UNITED KINGDOM"|bertdf$country=="JAPAN"|
+                        bertdf$country=="FINLAND"|bertdf$country=="AUSTRALIA", 1, 0)
+
+## OECD status
+bertdf$oecd = ifelse(bertdf$country=="CHILE" & bertdf$year>=2010|
+                    bertdf$country=="COLOMBIA" & bertdf$year>=2020|
+                    bertdf$country=="COSTA RICA" & bertdf$year>=2021|
+                    bertdf$country=="CZECH REPUBLIC" & bertdf$year>=1995|
+                    bertdf$country=="HUNGARY" & bertdf$year>=1996|
+                    bertdf$country=="ISRAEL" & bertdf$year>=2010|
+                    bertdf$country=="KOREA" & bertdf$year>=1996|
+                      bertdf$country=="MEXICO" & bertdf$year>=1994|
+                    bertdf$country=="POLAND" & bertdf$year>=1996|
+                    bertdf$oecd1994==1, 1, 0)
+
+## assign iso codes
+bertdf = bertdf %>% dplyr::mutate(
+  country = str_to_title(country),
+  iso3c = countrycode(country, 
+                      origin = "country.name",
+                      destination = "iso3c",
+                      custom_match = c("European Union" = "EUU"))
+)
+
+```
+
+
+## Special 301 status
+```{r}
+## Special 301
+special301=read.csv("special301.csv")
+colnames(special301) = gsub("X", "", colnames(special301))
+special301 = as.data.frame(gsub("[[:punct:]]", "", as.matrix(special301))) 
+special301 = as.data.frame(gsub("Monitoring|Pending", "", as.matrix(special301)))
+
+special301 = special301 %>%
+  pivot_longer(cols = c(2:15),
+               names_to = "year",
+               values_to = "special301")
+
+special301$Country = replace(special301$Country, special301$Country == "South Korea", "Korea")
+names(special301)[names(special301)=="Country"]="country"
+special301$year=as.numeric(special301$year)
+
+bertdf = bertdf %>%
+  left_join(special301, join_by(country, year))
+
+bertdf$country = str_to_upper(bertdf$country)
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==1995&(bertdf$country=="BRAZIL"|
+                                                     bertdf$country=="EUROPEAN UNION"|
+                                                     bertdf$country=="GREECE"|
+                                                     bertdf$country=="INDIA"|
+                                                     bertdf$country=="JAPAN"|
+                                                     bertdf$country=="KOREA"|
+                                                     bertdf$country=="SAUDI ARABIA"|
+                                                     bertdf$country=="TURKEY"), "PWL")
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==1995&(bertdf$country=="ARGENTINA"|
+                                                     bertdf$country=="BAHRAIN"|
+                                                     bertdf$country=="CANADA"|
+                                                     bertdf$country=="CHILE"|
+                                                     bertdf$country=="CHINA"|
+                                                     bertdf$country=="COLOMBIA"|
+                                                     bertdf$country=="COSTA RICA"|
+                                                     bertdf$country=="EGYPT"|
+                                                     bertdf$country=="EL SALVADOR"|
+                                                     bertdf$country=="GUATEMALA"|
+                                                     bertdf$country=="INDONESIA"|
+                                                     bertdf$country=="ITALY"|
+                                                     bertdf$country=="PAKISTAN"|
+                                                     bertdf$country=="PERU"|
+                                                     bertdf$country=="PHILIPPINES"|
+                                                     bertdf$country=="POLAND"|
+                                                     bertdf$country=="ROMANIA"|
+                                                     bertdf$country=="RUSSIA"|
+                                                     bertdf$country=="SINGAPORE"|
+                                                     bertdf$country=="SOUTH AFRICA"|
+                                                     bertdf$country=="THAILAND"|
+                                                     bertdf$country=="TAIWAN"|
+                                                     bertdf$country=="UNITED ARAB EMIRATES"|
+                                                     bertdf$country=="VENEZUELA"), "WL")
+
+bertdf$special301 = replace(bertdf$special301, 
+                               bertdf$year==1996 & grepl("china", bertdf$country, ignore.case = T),
+                               "PFC")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1996 & grepl("argentina|european|greece|
+                                                            india|indonesia|japan|
+                                                            korea|turkey",
+                                                            bertdf$country, ignore.case = T),
+                               "PWL")
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1996 & grepl("australia|bahrain|brazil|
+                                                            canada|chile|colombia|costa|
+                                                            ecuador|egypt|salvador|guatemala|
+                                                            italy|kuwait|oman|pakistan|paraguay|
+                                                            peru|philipp|poland|russia|saudi|
+                                                            singapore|thailand|emirates|venezuela",
+                                                            bertdf$country, ignore.case = T),
+                               "WL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1997 & grepl("argentina|ecuador|egypt|
+                                                            european|greece|india|
+                                                            indonesia|paraguay|russia|
+                                                            turkey",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1997 & grepl("australia|bahrain|bolivia|
+                                                            brazil|bulgaria|canada|
+                                                            chile|colombia|costa|denmark|
+                                                            dominican|guatemala|honduras|
+                                                            hong kong|ireland|israel|italy|
+                                                            japan|jordan|korea|kuwait|
+                                                            luxembourg|oman|pakistan|panama|
+                                                            peru|philipp|poland|saudi|
+                                                            singapore|sweden|thailand|
+                                                            emirates|venezuela",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1998 & grepl("paraguay",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PFC")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1998 & grepl("argentina|bulgaria|dominican|
+                                                            ecuador|egypt|european|
+                                                            greece|india|
+                                                            indonesia|israel|italy|
+                                                            kuwait|macao|russia|
+                                                            turkey",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1998 & grepl("australia|bahrain|canada|
+                                                            chile|colombia|costa|czech|
+                                                            denmark|guatemala|honduras|
+                                                            hong kong|ireland|jamaica|
+                                                            japan|jordan|kazakh|korea|
+                                                            oman|pakistan|peru|philipp|
+                                                            poland|qatar|saudi|
+                                                            singapore|africa|sweden|thailand|
+                                                            ukraine|emirates|venezuela|vietnam",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1999 & grepl("argentina|dominican|
+                                                            egypt|european|
+                                                            greece|guatema|india|
+                                                            indonesia|israel|italy|
+                                                            kuwait|macao|macau|
+                                                            peru|russia|turkey|ukraine",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==1999 & grepl("australia|belarus|bolivia|brazil|canada|
+                                                            chile|colombia|costa|czech|
+                                                            denmark|ecuador|hungary|
+                                                            ireland|jamaica|
+                                                            japan|jordan|korea|lebanon|
+                                                            mexico|zealand|
+                                                            oman|pakistan|philipp|
+                                                            poland|qatar|romania|saudi|
+                                                            singapore|africa|spain|sweden|
+                                                            taiwan|thailand|
+                                                            ukraine|emirates|uruguay|venezuela|vietnam",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2000 & grepl("argentina|dominican|
+                                                            egypt|european|
+                                                            greece|guatema|india|
+                                                            israel|italy|korea|
+                                                            malaysia|peru|
+                                                            poland|russia|turkey|ukraine",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2000 & grepl("armenia|azerbaijan|belarus|bolivia|brazil|canada|
+                                                            chile|colombia|costa|czech|
+                                                            denmark|ecuador|hungary|indonesia|
+                                                            ireland|jamaica|kazakh|
+                                                            kuwait|latvia|lebanon|
+                                                            lithuania|macao|macau|
+                                                            moldova|oman|pakistan|philipp|
+                                                            poland|qatar|romania|saudi|
+                                                            singapore|spain|taiwan|tajiki|thailand|
+                                                            turkmen|uruguay|uzbek|venezuela|vietnam",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2001 & grepl("argentina|costa|dominican|
+                                                            egypt|european|hungary|india|
+                                                            indonesia|israel|korea|
+                                                            lebanon|malaysia|philipp|
+                                                            russia|taiwan|uruguay",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2001 & grepl("armenia|azerbaijan|belarus|bolivia|brazil|canada|
+                                                            chile|colombia|greece|
+                                                            guatemala|italy|jamaica|kazakh|
+                                                            kuwait|latvia|lithuania|
+                                                            lithuania|macao|macau|
+                                                            zealand|pakistan|peru|
+                                                            poland|romania|saudi|slovak|
+                                                            tajiki|thailand|turkey|
+                                                            turkmen|emirates|uzbek|venezuela|vietnam",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2002 & grepl("ukraine",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PFC")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2002 & grepl("argentina|brazil|colombia|dominican|
+                                                            egypt|european|hungary|india|
+                                                            indonesia|israel|
+                                                            lebanon|philipp|
+                                                            russia|taiwan|uruguay",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2002 & grepl("armenia|azerbaijan|bahamas|belarus|
+                                                            bolivia|canada|costa|greece|
+                                                            guatemala|italy|jamaica|kazakh|korea|
+                                                            kuwait|latvia|lithuania|
+                                                            lithuania|zealand|pakistan|peru|
+                                                            poland|qatar|romania|saudi|slovak|
+                                                            tajiki|thailand|turkey|
+                                                            turkmen|uzbek|venezuela|vietnam",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2003 & grepl("ukraine",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PFC")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2003 & grepl("argentina|bahamas|brazil|european|
+                                                            india|indonesia|lebanon|philipp|
+                                                            poland|russia|taiwan",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2003 & grepl("azerbaijan|belarus|
+                                                            bolivia|canada|chile|
+                                                            colombia|costa|croatia|
+                                                            dominican|ecuador|egypt|
+                                                            guatemala|hungary|israel|
+                                                            italy|jamaica|kazakh|korea|
+                                                            kuwait|latvia|lithuania|
+                                                            malaysia|mexico|
+                                                            pakistan|peru|romania|saudi|slovak|
+                                                            tajiki|thailand|turkey|
+                                                            uzbek|venezuela|vietnam",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2004 & grepl("ukraine",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PFC")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2004 & grepl("argentina|bahamas|brazil|egypt|european|
+                                                            india|indonesia|korea|
+                                                            kuwait|lebanon|philipp|
+                                                            russia|taiwan|turkey",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "PWL")
+
+
+bertdf$special301 = replace(bertdf$special301,
+                               bertdf$year==2004 & grepl("azerbaijan|belarus|belize|
+                                                            bolivia|bulgaria|canada|chile|
+                                                            colombia|costa|croatia|
+                                                            dominican|ecuador|
+                                                            guatemala|hungary|israel|
+                                                            italy|jamaica|kazakh|
+                                                            latvia|lithuania|malaysia|mexico|
+                                                            peru|poland|romania|saudi|slovak|
+                                                            tajiki|thailand|turkmen|uruguay|
+                                                            uzbek|venezuela|vietnam",
+                                                            bertdf$country,
+                                                            ignore.case = T),
+                               "WL")
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2019&(bertdf$country=="CHINA"|
+                                                     bertdf$country=="INDONESIA"|
+                                                     bertdf$country=="INDIA"|
+                                                     bertdf$country=="ALGERIA"|
+                                                     bertdf$country=="KUWAIT"|
+                                                     bertdf$country=="SAUDI ARABIA"|
+                                                     bertdf$country=="RUSSIA"|
+                                                     bertdf$country=="UKRAINE"|
+                                                     bertdf$country=="ARGENTINA"|
+                                                     bertdf$country=="CHILE"|
+                                                     bertdf$country=="VENEZUELA"), "PWL")
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2019&(bertdf$country=="THAILAND"|
+                                                     bertdf$country=="VIETNAM"|
+                                                     bertdf$country=="PAKISTAN"|
+                                                     bertdf$country=="UZBEKISTAN"|
+                                                     bertdf$country=="EGYPT"|
+                                                     bertdf$country=="LEBANON"|
+                                                     bertdf$country=="UNITE ARAB EMIRATES"|
+                                                     bertdf$country=="GREECE"|
+                                                     bertdf$country=="ROMANIA"|
+                                                     bertdf$country=="SWITZERLAND"|
+                                                     bertdf$country=="TURKEY"|
+                                                     bertdf$country=="BARBADOS"|
+                                                     bertdf$country=="BOLIVIA"|
+                                                     bertdf$country=="BRAZIL"|
+                                                     bertdf$country=="CANADA"|
+                                                     bertdf$country=="COLOMBIA"|
+                                                     bertdf$country=="COSTA RICA"|
+                                                     bertdf$country=="DOMINICAN REPUBLIC"|
+                                                     bertdf$country=="ECUADOR"|
+                                                     bertdf$country=="GUATEMALA"|
+                                                     bertdf$country=="JAMAICA"|
+                                                     bertdf$country=="MEXICO"|
+                                                     bertdf$country=="PARAGUAY"|
+                                                     bertdf$country=="PERU"), "WL")
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2020&(bertdf$country=="CHINA"|
+                                                     bertdf$country=="INDONESIA"|
+                                                     bertdf$country=="INDIA"|
+                                                     bertdf$country=="ALGERIA"|
+                                                     bertdf$country=="SAUDI ARABIA"|
+                                                     bertdf$country=="RUSSIA"|
+                                                     bertdf$country=="UKRAINE"|
+                                                     bertdf$country=="ARGENTINA"|
+                                                     bertdf$country=="CHILE"|
+                                                     bertdf$country=="VENEZUELA"), "PWL")
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2020&(bertdf$country=="THAILAND"|
+                                                     bertdf$country=="VIETNAM"|
+                                                     bertdf$country=="PAKISTAN"|
+                                                     bertdf$country=="UZBEKISTAN"|
+                                                     bertdf$country=="EGYPT"|
+                                                     bertdf$country=="KUWAIT"|
+                                                     bertdf$country=="LEBANON"|
+                                                     bertdf$country=="UNITE ARAB EMIRATES"|
+                                                     bertdf$country=="ROMANIA"|
+                                                     bertdf$country=="TURKEY"|
+                                                     bertdf$country=="BARBADOS"|
+                                                     bertdf$country=="BOLIVIA"|
+                                                     bertdf$country=="BRAZIL"|
+                                                     bertdf$country=="CANADA"|
+                                                     bertdf$country=="COLOMBIA"|
+                                                     bertdf$country=="DOMINICAN REPUBLIC"|
+                                                     bertdf$country=="ECUADOR"|
+                                                     bertdf$country=="GUATEMALA"|
+                                                     bertdf$country=="MEXICO"|
+                                                     bertdf$country=="PARAGUAY"|
+                                                     bertdf$country=="PERU"), "WL")
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2021&(bertdf$country=="CHINA"|
+                                                     bertdf$country=="INDONESIA"|
+                                                     bertdf$country=="INDIA"|
+                                                     bertdf$country=="SAUDI ARABIA"|
+                                                     bertdf$country=="RUSSIA"|
+                                                     bertdf$country=="UKRAINE"|
+                                                     bertdf$country=="ARGENTINA"|
+                                                     bertdf$country=="CHILE"|
+                                                     bertdf$country=="VENEZUELA"), "PWL")
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2021&(bertdf$country=="THAILAND"|
+                                                     bertdf$country=="VIETNAM"|
+                                                     bertdf$country=="PAKISTAN"|
+                                                     bertdf$country=="UZBEKISTAN"|
+                                                     bertdf$country=="EGYPT"|
+                                                     bertdf$country=="KUWAIT"|
+                                                     bertdf$country=="LEBANON"|
+                                                     bertdf$country=="UNITE ARAB EMIRATES"|
+                                                     bertdf$country=="ROMANIA"|
+                                                     bertdf$country=="TURKEY"|
+                                                     bertdf$country=="BARBADOS"|
+                                                     bertdf$country=="BOLIVIA"|
+                                                     bertdf$country=="BRAZIL"|
+                                                     bertdf$country=="CANADA"|
+                                                     bertdf$country=="COLOMBIA"|
+                                                     bertdf$country=="DOMINICAN REPUBLIC"|
+                                                     bertdf$country=="ECUADOR"|
+                                                     bertdf$country=="GUATEMALA"|
+                                                     bertdf$country=="MEXICO"|
+                                                     bertdf$country=="PARAGUAY"|
+                                                     bertdf$country=="PERU"|
+                                                     bertdf$country=="ALGERIA"), "WL")
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2022&(bertdf$country=="CHINA"|
+                                                     bertdf$country=="INDONESIA"|
+                                                     bertdf$country=="INDIA"|
+                                                     bertdf$country=="RUSSIA"|
+                                                     bertdf$country=="ARGENTINA"|
+                                                     bertdf$country=="CHILE"|
+                                                     bertdf$country=="VENEZUELA"), "PWL")
+
+bertdf$special301=replace(bertdf$special301,
+                             bertdf$year==2022&(bertdf$country=="THAILAND"|
+                                                     bertdf$country=="VIETNAM"|
+                                                     bertdf$country=="PAKISTAN"|
+                                                     bertdf$country=="UZBEKISTAN"|
+                                                     bertdf$country=="EGYPT"|
+                                                     bertdf$country=="ROMANIA"|
+                                                     bertdf$country=="TURKEY"|
+                                                     bertdf$country=="BARBADOS"|
+                                                     bertdf$country=="BOLIVIA"|
+                                                     bertdf$country=="BRAZIL"|
+                                                     bertdf$country=="CANADA"|
+                                                     bertdf$country=="COLOMBIA"|
+                                                     bertdf$country=="DOMINICAN REPUBLIC"|
+                                                     bertdf$country=="ECUADOR"|
+                                                     bertdf$country=="GUATEMALA"|
+                                                     bertdf$country=="MEXICO"|
+                                                     bertdf$country=="PARAGUAY"|
+                                                     bertdf$country=="PERU"|
+                                                     bertdf$country=="ALGERIA"), "WL")
+
+bertdf$country = str_to_title(bertdf$country)
+
+bertdf$special301 = replace(bertdf$special301, bertdf$special301=="", NA)
+
+bertdf$priority_watch = ifelse(bertdf$special301=="PWL", 1, 0)
+bertdf$special301_all = ifelse(!is.na(bertdf$special301), 1, 0)
+
+bertdf = bertdf %>%
+  dplyr::group_by(country) %>%
+  dplyr::mutate(
+    lag_sp301 = dplyr::lag(special301),
+    pwl_elev = ifelse(special301=="PWL"&(lag_sp301=="WL"|
+                                           is.na(lag_sp301)|
+                                           lag_sp301==""),
+                      1, 0),
+    pwl_deesc = ifelse(lag_sp301=="PWL"& (special301!="PWL"&special301!="PFC"), 1, 0)
+  ) %>% dplyr::select(-lag_sp301)
+
+bertdf$priority_watch = replace(bertdf$priority_watch, 
+                                   is.na(bertdf$priority_watch), 0)
+bertdf$pwl_elev = replace(bertdf$pwl_elev,
+                             is.na(bertdf$pwl_elev), 0)
+bertdf$pwl_deesc = replace(bertdf$pwl_deesc,
+                             is.na(bertdf$pwl_deesc), 0)
+
+```
+
+
+
+## ISDS cases
+```{r}
+## ISDS cases
+isds_us=read.csv("isds_cases_us_claim.csv")
+colnames(isds_us)=c("year","isds_case_no", "claimant", "country", "status")
+
+isds_us=isds_us %>%
+  dplyr::group_by(country, year) %>%
+  dplyr::summarise(
+    isds_case_no = paste(isds_case_no, collapse = ", "),
+    claimant = paste(claimant, collapse = ", "),
+    isds_occurrences = n()
+  )
+
+isds_us$country = replace(isds_us$country, 
+                          grepl("congo", isds_us$country, ignore.case = T),
+                          "Congo")
+isds_us$country = replace(isds_us$country, 
+                          grepl("ecuador", isds_us$country, ignore.case = T),
+                          "Ecuador")
+isds_us$country = replace(isds_us$country, 
+                          grepl("trinidad", isds_us$country, ignore.case = T),
+                          "Trinidad and Tobago")
+
+bertdf = bertdf %>%
+  left_join(isds_us,
+            by = c("country", "year"))
+
+bertdf$isds_occurrences = replace(bertdf$isds_occurrences,
+                                     is.na(bertdf$isds_occurrences), 0)
+
+```
+
+
+## GDP / Trade flows
+```{r}
+## GDP / tradeflow
+gdppc = WDI(
+  country = "all",
+  indicator = "NY.GDP.PCAP.PP.KD",
+  start = 1995,
+  end = 2022,
+  extra = T
+)
+
+gdpcons = WDI(
+  country = "all",
+  indicator = "NY.GDP.MKTP.PP.KD", #GDP PPP, constant 2021 USD
+  start = 1995,
+  end = 2022,
+  extra = T
+)
+
+gdpgrowth = WDI(
+  country = "all",
+  indicator = "NY.GDP.MKTP.KD.ZG",
+  start = 1995,
+  end = 2022,
+  extra = T
+)
+
+gdppc = gdppc %>% 
+  dplyr::select(iso3c, year, NY.GDP.PCAP.PP.KD) %>%
+  dplyr::mutate(gdppc = NY.GDP.PCAP.PP.KD) %>% dplyr::select(-NY.GDP.PCAP.PP.KD)
+gdpcons = gdpcons %>% 
+  dplyr::select(iso3c, year, NY.GDP.MKTP.PP.KD) %>%
+  dplyr::mutate(gdpcons = NY.GDP.MKTP.PP.KD) %>% dplyr::select(-NY.GDP.MKTP.PP.KD)
+gdpgrowth = gdpgrowth %>% 
+  dplyr::select(iso3c, year, NY.GDP.MKTP.KD.ZG) %>%
+  dplyr::mutate(gdpgrowth = NY.GDP.MKTP.KD.ZG) %>% dplyr::select(-NY.GDP.MKTP.KD.ZG)
+
+bertdf = bertdf %>%
+  left_join(gdppc,by = c("iso3c", "year")) %>%
+  left_join(gdpcons, by = c("iso3c", "year")) %>%
+  left_join(gdpgrowth, by = c("iso3c", "year"))
+
+tradeflow_us = read.csv("dots_us.csv")
+tradeflow_us = tradeflow_us %>% dplyr::select(
+  Counterpart.Country.Name,
+  Counterpart.Country.Code,
+  Time.Period,
+  Goods..Value.of.Imports..Cost..Insurance..Freight..CIF...US.Dollars..TMG_CIF_USD.,
+  Goods..Value.of.Exports..Free.on.board..FOB...US.Dollars..TXG_FOB_USD.
+)
+colnames(tradeflow_us) = c("partner", "cc_imf", "year", "import", "export")
+tradeflow_us = tradeflow_us %>% dplyr::mutate(
+  iso3c = countrycode(cc_imf, "imf", "iso3c", custom_match = c("998" = "EUU"))
+) %>% dplyr::select(-c(partner, cc_imf))
+
+bertdf = bertdf %>%
+  left_join(tradeflow_us, by = c("iso3c", "year"))
+
+bertdf = bertdf %>%
+  dplyr::mutate(
+    log_import = sign(import)*log(abs(import)),
+    log_export = sign(export)*log(abs(export)),
+    log_gdppc = log(gdppc),
+    log_gdpcons = log(gdpcons)
+  )
+```
+
+
+
+## WhoGov
+```{r}
+whogov = read_csv("WhoGov_crosssectional_V2.0.csv")
+whogov = whogov %>%
+  dplyr::mutate(
+    iso3c = country_isocode,
+    regime_type = system_category
+  ) %>%
+  select(iso3c, year, leader, leader_party, regime_type)
+
+bertdf = bertdf %>%
+  left_join(whogov,
+            by = c("iso3c", "year"))
+
+
+bertdf = bertdf %>% 
+  dplyr::group_by(country) %>%
+  dplyr::mutate(
+    leader_t1 = dplyr::lag(leader),
+    party_t1 = dplyr::lag(leader_party),
+    leader_change = ifelse(leader!=leader_t1, 1, 0),
+    leader_pty_change = ifelse(leader_party!=party_t1, 1, 0)
+  ) %>% dplyr::select(-c(leader_t1, party_t1)) %>%
+  fill(c("leader_change", "leader_pty_change"), .direction = "up")
+
+bertdf = bertdf %>%
+  group_by(country) %>%
+  dplyr::mutate(
+    democ = ifelse(grepl("democra", regime_type, ignore.case = T) &
+                     !is.na(regime_type), 1, NA)
+  ) %>%
+  fill(democ, .direction = "down")
+
+bertdf = bertdf %>%
+  group_by(country) %>%
+  dplyr::mutate(
+    dictatorship = ifelse(grepl("dictator", regime_type, ignore.case = T) &
+                     !is.na(regime_type), 1, NA)
+  ) %>%
+  fill(dictatorship, .direction = "down")
+
+bertdf$democ = replace(bertdf$democ, is.na(bertdf$democ), 0)
+bertdf$dictatorship = replace(bertdf$dictatorship, is.na(bertdf$dictatorship), 0)
+```
+
+
+
+## WTO dev status
+```{r}
+wto_dev = c("Albania", "Antigua", "Argentina", "Armenia",
+            "Bahrain", "Barbados", "Belize", "Bolivia",
+            "Botswana", "Brazil", "Brunei", "Verde",
+            "Cameroon", "Chile", "China", "Taipei",
+            "Colombia", "Congo", "Costa Rica", "Ivoire",
+            "Cuba", "Dominica", "Dominican Republic", "Ecuador",
+            "Egypt", "El Salvador", "Eswatini", "Fiji", "Gabon",
+            "Georgia", "Ghana", "Grenada", "Guatemala", "Guyana",
+            "Honduras", "Hong Kong", "India", "Indonesia",
+            "Israel", "Jamaica", "Jordan", "Kazakhstan",
+            "Kenya", "Korea", "Kuwait", "Kyrgyz", "Macao",
+            "Malaysia", "Maldives", "Mauritius", "Mexico",
+            "Moldova", "Mongolia", "Montenegro", "Morocco",
+            "Namibia", "Nicaragua", "Nigeria", "Macedonia",
+            "Oman", "Pakistan", "Panama", "Papua New Guinea",
+            "Paraguay", "Peru", "Philippines", "Qatar",
+            "Kitts", "Lucia", "Grenadines",
+            "Samoa", "Saudi Arabia", "Seychelles", "Singapore",
+            "South Africa", "Sri Lanka", "Suriname", "Tajikistan",
+            "Thailand", "Tonga", "Trinidad", "Tunisia", "Turkey",
+            "Ukraine", "United Arab Emirates", "Uruguay", "Vanuatu",
+            "Venezuela", "Viet", "Zimbabwe")
+
+wto_ldc = c("Afghanistan", "Angola", "Bangladesh", "Benin",
+            "Burkina Faso", "Burundi", "Cambodia", "Central African Republic",
+            "Chad", "Congo", "Djibouti", "Gambia", "Guinea", "Bissau",
+            "Haiti", "Laos", "Lesotho", "Liberia", "Madagascar",
+            "Malawi", "Mali", "Mauritania", "Mozambique", "Myanmar",
+            "Nepal", "Niger", "Rwanda", "Senegal", "Sierra Leone", "Solomon",
+            "Tanzania", "Togo", "Uganda", "Yemen", "Zambia")
+
+bertdf = bertdf %>%
+  dplyr::mutate(
+    wtodev = ifelse(grepl(paste0(wto_dev, collapse = "|"), country, ignore.case = T),
+                    1, 0),
+    wtoldc = ifelse(grepl(paste0(wto_ldc, collapse = "|"), country, ignore.case = T),
+                    1, 0)
+  )
+
+bertdf$wtodev = replace(bertdf$wtodev, 
+                           grepl("korea", bertdf$country, ignore.case = T) &
+                             bertdf$year>2019, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("albania", bertdf$country, ignore.case = T) &
+                             bertdf$year<2000, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("armenia", bertdf$country, ignore.case = T) &
+                             bertdf$year<2003, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("verde", bertdf$country, ignore.case = T) &
+                             bertdf$year<2008, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("china", bertdf$country, ignore.case = T) &
+                             bertdf$year<2001, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("congo", bertdf$country, ignore.case = T) &
+                             bertdf$year<1997, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("croatia", bertdf$country, ignore.case = T) &
+                             bertdf$year<2000, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("georgia", bertdf$country, ignore.case = T) &
+                             bertdf$year<2000, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("jordan", bertdf$country, ignore.case = T) &
+                             bertdf$year<2000, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("kazakh", bertdf$country, ignore.case = T) &
+                             bertdf$year<2015, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("kyrgyz", bertdf$country, ignore.case = T) &
+                             bertdf$year<1998, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("laos", bertdf$country, ignore.case = T) &
+                             bertdf$year<2013, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("latvia", bertdf$country, ignore.case = T) &
+                             bertdf$year<1999, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("lithuania", bertdf$country, ignore.case = T) &
+                             bertdf$year<2001, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("moldova", bertdf$country, ignore.case = T) &
+                             bertdf$year<2001, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("mongol", bertdf$country, ignore.case = T) &
+                             bertdf$year<1997, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("montenegro", bertdf$country, ignore.case = T) &
+                             bertdf$year<2012, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("macedonia", bertdf$country, ignore.case = T) &
+                             bertdf$year<2003, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("oman", bertdf$country, ignore.case = T) &
+                             bertdf$year<2000, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("panama", bertdf$country, ignore.case = T) &
+                             bertdf$year<1997, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("papua", bertdf$country, ignore.case = T) &
+                             bertdf$year<1996, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("qatar", bertdf$country, ignore.case = T) &
+                             bertdf$year<1996, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("russia", bertdf$country, ignore.case = T) &
+                             bertdf$year<2012, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("samo", bertdf$country, ignore.case = T) &
+                             bertdf$year<2012, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("saudi", bertdf$country, ignore.case = T) &
+                             bertdf$year<2005, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("tajik", bertdf$country, ignore.case = T) &
+                             bertdf$year<2013, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("ukraine", bertdf$country, ignore.case = T) &
+                             bertdf$year<2008, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("emirates", bertdf$country, ignore.case = T) &
+                             bertdf$year<1996, 0)
+bertdf$wtodev = replace(bertdf$wtodev,
+                           grepl("viet", bertdf$country, ignore.case = T) &
+                             bertdf$year<1997, 0)
+```
+
+
+
+## UNGA / US aid
+```{r}
+unga = read.csv("unga_score.csv")
+unga = unga %>% filter(ccode1==2, year>=1995) %>%
+  dplyr::mutate(iso3c = countrycode(ccode2, "cown" , "iso3c", custom_match = c("995" = "EUU")),
+                unga_dist = IdealPointDistance) %>%
+  select(iso3c, year, unga_dist)
+
+bertdf = bertdf %>%
+  left_join(unga,
+            by = c("iso3c", "year"))
+
+## US aid
+usaid = read.csv("us_foreign_aid_country.csv")
+usaid = usaid[!grepl("region", usaid$Country.Name, ignore.case = T),]
+names(usaid)[names(usaid) == "Fiscal.Year"] = "year" # oct1-sep30 (year in which it ends)
+names(usaid)[names(usaid) == "Country.Code"] = "iso3c"
+names(usaid)[names(usaid) == "Transaction.Type.Name"] = "trans_type"
+usaid$year = as.numeric(usaid$year)
+usaid = usaid[!is.na(usaid$year),]
+
+usaid = usaid %>% 
+  dplyr::select(iso3c, year, trans_type, constant_amount) %>%
+  dplyr::mutate(aid_usd = constant_amount) %>%
+  dplyr::select(-constant_amount)
+
+usaid_disb = usaid[usaid$trans_type == "Disbursements",]
+usaid_obl = usaid[usaid$trans_type == "Obligations",]
+usaid_app = usaid[usaid$trans_type == "Appropriated and Planned",]
+
+names(usaid_disb)[names(usaid_disb) == "aid_usd"] = "aid_disb_usd"
+names(usaid_app)[names(usaid_app) == "aid_usd"] = "aid_app_usd"
+names(usaid_obl)[names(usaid_obl) == "aid_usd"] = "aid_obl_usd"
+
+usaid_disb = usaid_disb %>% dplyr::select(-trans_type)
+usaid_app = usaid_app %>% dplyr::select(-trans_type)
+usaid_obl = usaid_obl %>% dplyr::select(-trans_type)
+
+bertdf = bertdf %>%
+  left_join(usaid_disb, by = c("iso3c", "year"))
+bertdf = bertdf %>%
+  left_join(usaid_app, by = c("iso3c", "year"))
+bertdf = bertdf %>%
+  left_join(usaid_obl, by = c("iso3c", "year"))
+
+bertdf = bertdf %>%
+  dplyr::mutate(
+    across(starts_with("aid_"), ~replace_na(., 0))
+  )
+
+## rearrange columns
+bertdf = bertdf %>% select(iso3c, everything())
+```
+
+## DESTA
+```{r}
+desta = desta::treaties_dyads %>%
+  dplyr::select(iso1, iso2, number) %>%
+  left_join(desta::content_coding, by = "number") %>%
+  dplyr::filter(iso1==840|iso2==840)
+
+desta$iso1 = replace(desta$iso1, desta$iso1==840, 704)
+desta$iso3c = countrycode(desta$iso1, origin = "iso3n", destination = "iso3c")
+
+destatemp = desta %>%
+  dplyr::select(iso3c, year, starts_with("ipr_"), number)
+
+tplus = read_excel("TRIPSplus.xlsx")
+tplus = tplus[,-c(180:293)]
+tplus = tplus %>%
+  select(-JS_ID, -BaseTreaty, -PTA, 
+         -Members, -date_signature, 
+         -year_signature, -date_entry_into_force, 
+         -year_entry_into_force) %>%
+  rename("number" = "Number")
+
+bertdf = bertdf %>%
+  left_join(destatemp, by = c("iso3c", "year"))
+
+bertdf = bertdf %>%
+  left_join(tplus, by="number")
+
+bertdf = bertdf %>%
+  dplyr::group_by(country) %>%
+  tidyr::fill(starts_with("ipr_"), .direction = "down")
+
+bertdf = bertdf %>%
+  dplyr::mutate(across(starts_with("ipr_"), ~replace(., is.na(.), 0))) %>%
+  dplyr::mutate(across(starts_with("tripsplus_"), ~replace(., is.na(.), 0)))
+
+```
+
+
+## IFC investment services prep
+```{r}
+ifcsvc = read.csv("IFC_invest_svcs.csv")
+ifcsvc = ifcsvc %>%
+  filter(WB.Country.Code != 99 & grepl("loan|equity", Product.Line, ignore.case = T) & grepl("active|complete|disbursement", Status, ignore.case = T)) %>%
+  mutate(iso3c = countrycode(WB.Country.Code, origin = "wb_api2c", destination = "iso3c"),
+         ifc_loan = Total.IFC.investment.as.approved.by.Board.Million...USD.*10^6,
+         year = format(as.Date(IFC.Approval.Date, format = "%m/%d/%Y"), "%Y"),
+         year = as.numeric(as.character(year))) %>%
+  replace_na(list(ifc_loan = 0)) %>%
+  dplyr::group_by(iso3c,year) %>%
+  dplyr::summarise(ifc_loan = log1p(sum(ifc_loan)))
+
+bertdf = bertdf %>%
+  left_join(ifcsvc, by = c("iso3c", "year")) %>%
+  replace_na(list(ifc_loan = 0))
+```
+
+
+## Build temp (lags and factors)
+```{r}
+temp = bertdf %>%
+  # left_join(ifcbd_df, by = c("country", "year")) %>%
+  # replace_na(list(ifc_board = 0)) %>%
+  # replace_na(list(patents = 0, trademarks = 0)) %>%
+  group_by(country) %>%
+  mutate(ldeberta_score = lag(deberta_score),
+         lifc_loan = lag(ifc_loan),
+                wtoall = ifelse(wtodev+wtoldc>0, 1, 0),
+                lwtoall = lag(wtoall),
+                ldemo = lag(democ),
+                ldict = lag(dictatorship),
+                lunga_dist = lag(unga_dist,2),
+                loecd = lag(oecd),
+                lwtodev1 = lag(wtodev),
+                lwtodev = lag(wtodev),
+                lusbit = lag(usbit),
+                ldevdict = ldict*lwtodev,
+                ldevdemo = ldemo*lwtodev,
+                ldevdemoall = ldemo*lwtoall,
+                devstat = ifelse(lwtodev+wtodev>0, 1, 0),
+                logaid = sign(aid_obl_usd)*log1p(abs(aid_obl_usd)),
+                laid_usd = lag(logaid),
+         logaidsb = sign(aid_disb_usd)*log1p(abs(aid_disb_usd)),
+         laid_dsb = lag(logaidsb)
+                ) %>%
+  dplyr::mutate(ldevdict = factor(ldevdict, levels = c(0, 1), labels = c("No", "Yes")),
+                lwtodev = factor(lwtodev, levels = c(0, 1), labels = c("No", "Yes")),
+                ldevdemo = factor(ldevdemo, levels = c(0, 1), labels = c("No", "Yes")),
+                democ = factor(democ, levels = c(0, 1), labels = c("Non-democracy", "Democracy")),
+                ldemo = factor(ldemo, levels = c(0, 1), labels = c("Non-democracy", "Democracy")),
+              )
+```
+
+
+# Aid allocation & TRIPS (DeBERTa score)
+## regressions
+```{r}
+## model specs
+summary(feols_trips_aid1 <- feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*laid_usd + unga_dist +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export +
+                usbit + isds_occurrences|year,
+              data = temp%>%filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy"), cluster = "iso3c"))
+summary(feols_trips_aid1p <- feols(ipr_tripsplus_patents ~ ldeberta_score*laid_usd + unga_dist +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export +
+                usbit + isds_occurrences|year,
+              data = temp%>%filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy"), cluster = "iso3c"))
+summary(feols_trips_aid1e <- feols(ipr_tripsplus_enforcement ~ ldeberta_score*laid_usd + unga_dist +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export +
+                usbit + isds_occurrences|year,
+              data = temp%>%filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy"), cluster = "iso3c"))
+
+## select obs used in the analyses
+tempA = temp%>%filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy")
+tempA = tempA[unlist(feols_trips_aid1$obs_selection),]
+tempA1 = temp%>%filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy")
+tempA1 = tempA1[unlist(feols_trips_aid1p$obs_selection),]
+tempB = temp%>%filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy")
+tempB = tempB[unlist(feols_trips_aid1e$obs_selection),]
+
+```
+
+
+## autocracy placebo
+```{r}
+cat("\n--- Aid: Undisclosed Info (autocracy-placebo) ---\n")
+print(summary(ap1<-feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*laid_usd + unga_dist +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export +
+                usbit + isds_occurrences|year,
+              data = temp%>%filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy"), cluster = "iso3c")))
+cat("\n--- Aid: Patent (autocracy-placebo) ---\n")
+print(summary(ap2<-feols(ipr_tripsplus_patents ~ ldeberta_score*laid_usd + unga_dist +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export +
+                usbit + isds_occurrences|year,
+              data = temp%>%filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy"), cluster = "iso3c")))
+cat("\n--- Aid: Enforcement (autocracy-placebo) ---\n")
+print(summary(ap3<-feols(ipr_tripsplus_enforcement ~ ldeberta_score*laid_usd + unga_dist +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export +
+                usbit + isds_occurrences|year,
+              data = temp%>%filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy"), cluster = "iso3c")))
+
+## named objects for the placebo table (columns 1-3: Aid x Non-democracy)
+pl_aid_u <- ap1
+pl_aid_p <- ap2
+pl_aid_e <- ap3
+```
+
+
+
+
+## marginal plots
+
+```{r}
+plot_comparisons(
+  feols_trips_aid1,
+  variables = list("laid_usd"="sd"),
+  condition = "ldeberta_score",
+  conf_level = 0.95
+) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempA, aes(x = ldeberta_score), 
+           inherit.aes = FALSE, color = "black", alpha = 0.4,
+           length = unit(0.06, "npc")) +
+  theme_classic() +
+  xlab("DeBERTa Score") +
+  ylab(bquote(Delta ~ ("Undisclosed info"))) +
+  theme(
+    panel.background = element_rect(fill = "transparent"),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    legend.position = "none"
+  )
+
+plot_comparisons(
+  feols_trips_aid1p,
+  variables = list("laid_usd"="sd"),
+  condition = "ldeberta_score",
+  conf_level = 0.9
+) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempA1, aes(x = ldeberta_score), 
+           inherit.aes = FALSE, color = "black", alpha = 0.4,
+           length = unit(0.06, "npc")) +
+  theme_classic() +
+  xlab("DeBERTa Score") +
+  ylab(bquote(Delta ~ ("Patent"))) +
+  theme(
+    panel.background = element_rect(fill = "transparent"),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    legend.position = "none"
+  )
+
+plot_comparisons(
+  feols_trips_aid1e,
+  variables = list("laid_usd"="sd"),
+  condition = "ldeberta_score",
+  conf_level = 0.9
+) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempB, aes(x = ldeberta_score), 
+           inherit.aes = FALSE, color = "black", alpha = 0.4,
+           length = unit(0.06, "npc")) +
+  theme_classic() +
+  xlab("DeBERTa Score") +
+  ylab(bquote(Delta ~ ("Enforcement"))) +
+  theme(
+    panel.background = element_rect(fill = "transparent"),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    legend.position = "none"
+  )
+
+```
+
+
+
+# IFC investment services & TRIPS
+## regressions
+```{r}
+cat("\n--- IFC: Undisclosed Info ---\n")
+print(summary(feols_trips_ifc1 <- feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*lifc_loan + 
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export + lunga_dist +
+                usbit + isds_occurrences|year,
+              data = temp %>% filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy"), cluster = "iso3c")))
+cat("\n--- IFC: Patent ---\n")
+print(summary(feols_trips_ifc1p <- feols(ipr_tripsplus_patents ~ ldeberta_score*lifc_loan + 
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export + lunga_dist +
+                usbit + isds_occurrences|year,
+              data = temp %>% filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy"), cluster = "iso3c")))
+cat("\n--- IFC: Enforcement ---\n")
+print(summary(feols_trips_ifc1e <- feols(ipr_tripsplus_enforcement ~ ldeberta_score*lifc_loan + 
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export + lunga_dist +
+                usbit + isds_occurrences|year,
+              data = temp %>% filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy"), cluster = "iso3c")))
+
+tempC = temp %>% filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy")
+tempC = tempC[unlist(feols_trips_ifc1$obs_selection),]
+tempC1 = temp %>% filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy")
+tempC1 = tempC1[unlist(feols_trips_ifc1p$obs_selection),]
+tempD = temp %>% filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS")%>%filter(democ=="Non-democracy")
+tempD = tempD[unlist(feols_trips_ifc1e$obs_selection),]
+
+```
+
+
+## democracy placebo
+```{r}
+cat("\n--- IFC: Undisclosed Info (Democracy-placebo) ---\n")
+print(summary(pl_ifc_u <- feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*lifc_loan +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export + lunga_dist +
+                usbit + isds_occurrences|year,
+              data = temp %>% filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy"), cluster = "iso3c")))
+cat("\n--- IFC: Patent (Democracy-placebo) ---\n")
+print(summary(pl_ifc_p <- feols(ipr_tripsplus_patents ~ ldeberta_score*lifc_loan +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export + lunga_dist +
+                usbit + isds_occurrences|year,
+              data = temp %>% filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy"), cluster = "iso3c")))
+cat("\n--- IFC: Enforcement (Democracy-placebo) ---\n")
+print(summary(pl_ifc_e <- feols(ipr_tripsplus_enforcement ~ ldeberta_score*lifc_loan +
+                log_gdppc + log_gdpcons + gdpgrowth +
+                log_import + log_export + lunga_dist +
+                usbit + isds_occurrences|year,
+              data = temp %>% filter(oecd1994==0 & iso3c!="EUU")%>%filter(democ=="Democracy"), cluster = "iso3c")))
+```
+
+## placebo table (LaTeX)
+```{r}
+etable(pl_aid_u, pl_aid_p, pl_aid_e, pl_ifc_u, pl_ifc_p, pl_ifc_e,
+       tex = TRUE,
+       depvar = TRUE,
+       digits = "r3",
+       digits.stats = "r3",
+       fitstat = ~ n + r2 + wr2,
+       signifCode = c("**" = 0.01, "*" = 0.05, "+" = 0.10),
+       file = "placebo_table.tex",
+       replace = TRUE)
+cat("Wrote placebo_table.tex:", file.exists("placebo_table.tex"), "\n")
+```
+
+
+
+## marginal plots
+```{r}
+plot_comparisons(feols_trips_ifc1,
+            variables = list("lifc_loan" = "sd"), 
+            condition = c("ldeberta_score"),
+            conf_level = 0.9) +
+  theme_classic() + xlab("DeBERTa score") + ylab(bquote(Delta ~ ("Undisclosed info"))) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data=tempC, aes(x=ldeberta_score), color = "black", alpha = .4, length = unit(0.06, "npc")) +
+  theme(
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill='transparent', color=NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.position = "none"
+       )
+
+plot_comparisons(feols_trips_ifc1p,
+            variables = list("lifc_loan" = "sd"), 
+            condition = c("ldeberta_score"),
+            conf_level = 0.9) +
+  theme_classic() + xlab("DeBERTa score") + ylab(bquote(Delta ~ ("Patent"))) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data=tempC1, aes(x=ldeberta_score), color = "black", alpha = .4, length = unit(0.06, "npc")) +
+  theme(
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill='transparent', color=NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.position = "none"
+       )
+
+plot_comparisons(feols_trips_ifc1e,
+            variables = list("lifc_loan" = "sd"), 
+            condition = c("ldeberta_score"),
+            conf_level = 0.9) +
+  theme_classic() + xlab("DeBERTa score") + ylab(bquote(Delta ~ ("Enforcement"))) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data=tempD, aes(x=ldeberta_score), color = "black", alpha = .4, length = unit(0.06, "npc")) +
+  theme(
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill='transparent', color=NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.position = "none"
+       )
+
+```
+
+
+
+# Results table
+```{r}
+etable(feols_trips_aid1, feols_trips_aid1e,
+       feols_trips_ifc1, feols_trips_ifc1e,
+       tex = T, depvar = T, digits = "r3", digits.stats = "r3")
+```
+
+
+
+# Heckman Selection Model (Robustness Check)
+```{r heckman-setup}
+load_pkg <- function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg, repos = "https://cloud.r-project.org")
+  }
+  library(pkg, character.only = TRUE)
+}
+invisible(lapply(c("sampleSelection", "texreg"), load_pkg))
+```
+
+```{r heckman-data}
+# Panel Heckman: use bertdf (country-year) directly
+# Selection eq: uspta (1 = has US PTA in force) — already in bertdf
+# Outcome eq: TRIPS-plus depth conditional on uspta == 1
+# Exclusion restriction: log geographic distance from US (CEPII GeoDist)
+# Rationale: distance predicts PTA formation (gravity) but should not
+# directly determine the depth of TRIPS-plus provisions conditional on signing
+
+# Load CEPII bilateral distance data
+dist_cepii <- read_xls("dist_cepii.xls")
+us_dist <- dist_cepii %>%
+  filter(iso_o == "USA") %>%
+  select(iso_d, distcap) %>%
+  rename(iso3c = iso_d, dist_us = distcap) %>%
+  mutate(log_dist_us = log(dist_us))
+
+# Merge into temp
+temp <- temp %>%
+  left_join(us_dist, by = "iso3c")
+
+cat("Panel observations:", nrow(temp), "\n")
+cat("Missing log_dist_us:", sum(is.na(temp$log_dist_us)), "\n")
+cat("uspta = 1:", sum(temp$uspta == 1, na.rm = TRUE), "\n")
+```
+
+
+```{r heckman-divided-gov-data}
+# Strict Kersting-style coding: divided_gov = 1 only when BOTH chambers
+# of Congress are controlled by the party opposite to the sitting
+# president (i.e., genuine split-party control of the legislature).
+# Any configuration where the president's party holds at least one
+# chamber is coded as unified (0).
+#
+# 10 divided years (1995-2000, 2007-2008, 2015-2016), 18 unified years.
+# More restrictive than a lenient "either-chamber-opposite" coding;
+# identifies the political episodes in which congressional constraints
+# on executive-discretion aid policy bind most tightly.
+
+divided_gov_df <- tibble::tibble(
+  year = 1995:2022,
+  divided_gov = c(
+    1,1,1,1,1,1,   # 1995-2000 Clinton (D), R House + R Senate
+    0,0,           # 2001-2002 Bush (R), only Senate opposite (not both)
+    0,0,0,0,       # 2003-2006 Bush (R), unified R Congress
+    1,1,           # 2007-2008 Bush (R), D House + D Senate
+    0,0,           # 2009-2010 Obama (D), unified D Congress
+    0,0,0,0,       # 2011-2014 Obama (D), only House opposite (not both)
+    1,1,           # 2015-2016 Obama (D), R House + R Senate
+    0,0,           # 2017-2018 Trump (R), unified R Congress
+    0,0,           # 2019-2020 Trump (R), only House opposite (not both)
+    0,0            # 2021-2022 Biden (D), unified D Congress
+  )
+)
+
+heck_demo <- temp %>% filter(oecd1994==0 & iso3c!="EUU") %>% filter(democ=="Democracy")
+heck_nondem <- temp %>% filter(oecd1994==0 & iso3c!="EUU" & iso3c!="RUS") %>% filter(democ=="Non-democracy")
+
+heck_demo_dg   <- heck_demo   %>% left_join(divided_gov_df, by = "year")
+heck_nondem_dg <- heck_nondem %>% left_join(divided_gov_df, by = "year")
+
+cat("Democracy subsample: strict divided_gov distribution\n")
+print(table(heck_demo_dg$divided_gov, useNA = "ifany"))
+cat("Non-democracy subsample: strict divided_gov distribution\n")
+print(table(heck_nondem_dg$divided_gov, useNA = "ifany"))
+```
+
+```{r heckman-aid-dg-models}
+# Aid x Democracy Heckman with:
+#  - strict divided_gov replacing post2002
+#  - usbit, log_export, gdpgrowth added to baseline controls
+# Exclusion restriction in selection equation: log_dist_us (gravity).
+
+heck_aid_undisc_dg <- heckit(
+  uspta ~ log_dist_us + log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  ipr_tripsplus_undisclosed_information ~ ldeberta_score * laid_usd +
+          log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  data = heck_demo_dg, method = "2step")
+
+heck_aid_patent_dg <- heckit(
+  uspta ~ log_dist_us + log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  ipr_tripsplus_patents ~ ldeberta_score * laid_usd +
+          log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  data = heck_demo_dg, method = "2step")
+
+heck_aid_enf_dg <- heckit(
+  uspta ~ log_dist_us + log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  ipr_tripsplus_enforcement ~ ldeberta_score * laid_usd +
+          log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  data = heck_demo_dg, method = "2step")
+```
+
+```{r heckman-ifc-dg-models}
+# IFC x Non-democracy Heckman: same expanded controls.
+
+heck_ifc_undisc_dg <- heckit(
+  uspta ~ log_dist_us + log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  ipr_tripsplus_undisclosed_information ~ ldeberta_score * lifc_loan +
+          log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  data = heck_nondem_dg, method = "2step")
+
+heck_ifc_patent_dg <- heckit(
+  uspta ~ log_dist_us + log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  ipr_tripsplus_patents ~ ldeberta_score * lifc_loan +
+          log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  data = heck_nondem_dg, method = "2step")
+
+heck_ifc_enf_dg <- heckit(
+  uspta ~ log_dist_us + log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  ipr_tripsplus_enforcement ~ ldeberta_score * lifc_loan +
+          log_gdpcons + log_import + log_export + unga_dist +
+          usbit + gdpgrowth + divided_gov,
+  data = heck_nondem_dg, method = "2step")
+```
+
+```{r heckman-dg-results}
+dg_models <- list(
+  "Aid x Democracy: Undiscl"  = heck_aid_undisc_dg,
+  "Aid x Democracy: Patents"  = heck_aid_patent_dg,
+  "Aid x Democracy: Enforce"  = heck_aid_enf_dg,
+  "IFC x Non-dem:  Undiscl"   = heck_ifc_undisc_dg,
+  "IFC x Non-dem:  Patents"   = heck_ifc_patent_dg,
+  "IFC x Non-dem:  Enforce"   = heck_ifc_enf_dg
+)
+
+sig_stars <- function(p) ifelse(is.na(p), "",
+  ifelse(p < 0.01, "**", ifelse(p < 0.05, "*",
+  ifelse(p < 0.10, "+", ""))))
+
+cat("\n=== Strict divided-gov + usbit + log_export + gdpgrowth ===\n")
+for (m_name in names(dg_models)) {
+  s <- summary(dg_models[[m_name]])
+  coefs <- s$estimate
+  rows  <- rownames(coefs)
+  main_var  <- if (grepl("Aid", m_name)) "laid_usd" else "lifc_loan"
+  inter_var <- paste0("ldeberta_score:", main_var)
+
+  lvl <- coefs[rows == main_var,  , drop = FALSE]
+  itr <- coefs[rows == inter_var, , drop = FALSE]
+  imr <- coefs[rows == "invMillsRatio", , drop = FALSE]
+
+  cat(sprintf("\n-- %s --\n", m_name))
+  cat(sprintf("  Level  (%-9s)       :  %+8.4f  SE=%.4f  p=%.4f %s\n",
+    main_var,  lvl[1,1], lvl[1,2], lvl[1,4], sig_stars(lvl[1,4])))
+  cat(sprintf("  Inter  (%-24s):  %+8.4f  SE=%.4f  p=%.4f %s\n",
+    inter_var, itr[1,1], itr[1,2], itr[1,4], sig_stars(itr[1,4])))
+  if (nrow(imr) > 0) {
+    cat(sprintf("  IMR    (invMillsRatio)       :  %+8.4f  SE=%.4f  p=%.4f %s\n",
+      imr[1,1], imr[1,2], imr[1,4], sig_stars(imr[1,4])))
+  }
+}
+
+screenreg(dg_models,
+          custom.model.names = c("Aid:Und (D)", "Aid:Pat (D)", "Aid:Enf (D)",
+                                 "IFC:Und (ND)","IFC:Pat (ND)","IFC:Enf (ND)"),
+          digits = 3)
+
+# Export LaTeX table for manuscript (overwrites heckman_results.tex)
+texreg(dg_models,
+       custom.model.names = c("Undiscl (D)", "Patents (D)", "Enforce (D)",
+                              "Undiscl (ND)","Patents (ND)","Enforce (ND)"),
+       caption = "Heckman selection model (strict divided-government specification)",
+       label   = "tab:heckman",
+       file    = "heckman_results.tex",
+       digits  = 3,
+       stars   = c(0.01, 0.05, 0.10))
+cat("Saved heckman_results.tex (divided-gov spec)\n")
+```
+
+
+
+
+# Summary stats (analysis sample: non-OECD, excl EU)
+```{r}
+# Overall analysis sample
+all_vars <- temp %>%
+  filter(oecd1994==0 & iso3c!="EUU") %>%
+  ungroup() %>%
+  select(ipr_tripsplus_undisclosed_information, ipr_tripsplus_patents, ipr_tripsplus_enforcement,
+         ldeberta_score, laid_usd, lifc_loan, unga_dist,
+         log_gdppc, log_gdpcons, gdpgrowth,
+         log_import, log_export, usbit, isds_occurrences, democ) %>%
+  drop_na()
+
+cat("=== OVERALL SAMPLE ===\n")
+cat(sprintf("N = %d, Democracy share = %.3f\n\n", nrow(all_vars), mean(all_vars$democ=="Democracy")))
+for (v in setdiff(names(all_vars), "democ")) {
+  x <- all_vars[[v]]
+  cat(sprintf("%-45s  Mean=%8.3f  SD=%8.3f  Min=%8.3f  Max=%8.3f\n",
+    v, mean(x), sd(x), min(x), max(x)))
+}
+
+# Democracy subsample (aid models)
+cat("\n=== DEMOCRACY SUBSAMPLE (aid models) ===\n")
+demo_vars <- all_vars %>% filter(democ=="Democracy") %>% select(-democ)
+cat(sprintf("N = %d\n\n", nrow(demo_vars)))
+for (v in names(demo_vars)) {
+  x <- demo_vars[[v]]
+  cat(sprintf("%-45s  Mean=%8.3f  SD=%8.3f  Min=%8.3f  Max=%8.3f\n",
+    v, mean(x), sd(x), min(x), max(x)))
+}
+
+# Non-democracy subsample (IFC models)
+cat("\n=== NON-DEMOCRACY SUBSAMPLE (IFC models) ===\n")
+nondem_vars <- all_vars %>% filter(democ=="Non-democracy") %>% select(-democ)
+cat(sprintf("N = %d\n\n", nrow(nondem_vars)))
+for (v in names(nondem_vars)) {
+  x <- nondem_vars[[v]]
+  cat(sprintf("%-45s  Mean=%8.3f  SD=%8.3f  Min=%8.3f  Max=%8.3f\n",
+    v, mean(x), sd(x), min(x), max(x)))
+}
+```
+
+
+# Identification robustness: TWFE and Mundlak
+
+## Main channel — Aid x Democracy (TWFE)
+```{r robust-aid-yfe}
+ce_aid <- "log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + unga_dist"
+demo_main <- temp %>% filter(oecd1994==0 & iso3c!="EUU") %>% filter(democ=="Democracy")
+aid_yfe_u <- feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*laid_usd + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + unga_dist |iso3c+year, data=demo_main, cluster="iso3c")
+aid_yfe_p <- feols(ipr_tripsplus_patents                 ~ ldeberta_score*laid_usd + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + unga_dist |iso3c+year, data=demo_main, cluster="iso3c")
+aid_yfe_e <- feols(ipr_tripsplus_enforcement             ~ ldeberta_score*laid_usd + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + unga_dist |iso3c+year, data=demo_main, cluster="iso3c")
+etable(aid_yfe_u, aid_yfe_p, aid_yfe_e, tex=TRUE, file="table_aid_dem_yfe.tex", digits=3)
+```
+
+## Main channel — Aid x Democracy (Mundlak)
+```{r robust-aid-mundlak}
+demo_mund <- demo_main %>% group_by(iso3c) %>%
+  mutate(mean_aid = mean(laid_usd, na.rm=TRUE),
+         dev_aid  = laid_usd - mean_aid) %>% ungroup()
+aid_mk_u <- feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*dev_aid + ldeberta_score*mean_aid + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + unga_dist | year, data=demo_mund, cluster="iso3c")
+aid_mk_p <- feols(ipr_tripsplus_patents                 ~ ldeberta_score*dev_aid + ldeberta_score*mean_aid + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + unga_dist | year, data=demo_mund, cluster="iso3c")
+aid_mk_e <- feols(ipr_tripsplus_enforcement             ~ ldeberta_score*dev_aid + ldeberta_score*mean_aid + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + unga_dist | year, data=demo_mund, cluster="iso3c")
+etable(aid_mk_u, aid_mk_p, aid_mk_e, tex=TRUE, file="table_aid_dem_mundlak.tex", digits=3)
+```
+
+## Main channel — IFC x Non-democracy (TWFE)
+```{r robust-ifc-yfe}
+nondem_main <- temp %>% filter(oecd1994==0 & iso3c!="EUU") %>% filter(democ=="Non-democracy")
+ifc_yfe_u <- feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*lifc_loan + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + lunga_dist |iso3c+year, data=nondem_main, cluster="iso3c")
+ifc_yfe_p <- feols(ipr_tripsplus_patents                 ~ ldeberta_score*lifc_loan + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + lunga_dist |iso3c+year, data=nondem_main, cluster="iso3c")
+ifc_yfe_e <- feols(ipr_tripsplus_enforcement             ~ ldeberta_score*lifc_loan + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + lunga_dist |iso3c+year, data=nondem_main, cluster="iso3c")
+etable(ifc_yfe_u, ifc_yfe_p, ifc_yfe_e, tex=TRUE, file="table_ifc_nondem_yfe.tex", digits=3)
+```
+
+## Main channel — IFC x Non-democracy (Mundlak)
+```{r robust-ifc-mundlak}
+nondem_mund <- nondem_main %>% group_by(iso3c) %>%
+  mutate(mean_ifc = mean(lifc_loan, na.rm=TRUE),
+         dev_ifc  = lifc_loan - mean_ifc) %>% ungroup()
+ifc_mk_u <- feols(ipr_tripsplus_undisclosed_information ~ ldeberta_score*dev_ifc + ldeberta_score*mean_ifc + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + lunga_dist | year, data=nondem_mund, cluster="iso3c")
+ifc_mk_p <- feols(ipr_tripsplus_patents                 ~ ldeberta_score*dev_ifc + ldeberta_score*mean_ifc + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + lunga_dist | year, data=nondem_mund, cluster="iso3c")
+ifc_mk_e <- feols(ipr_tripsplus_enforcement             ~ ldeberta_score*dev_ifc + ldeberta_score*mean_ifc + log_gdppc + log_gdpcons + gdpgrowth + log_import + log_export + usbit + isds_occurrences + lunga_dist | year, data=nondem_mund, cluster="iso3c")
+etable(ifc_mk_u, ifc_mk_p, ifc_mk_e, tex=TRUE, file="table_ifc_nondem_mundlak.tex", digits=3)
+```
+
+## Save analysis dataset and convenience workspace
+```{r save-extract-workspace}
+write.csv(temp, "analysis_data.csv", row.names = FALSE)
+save.image("nteDeBERTa_RR.RData")
+cat("Wrote analysis_data.csv:", file.exists("analysis_data.csv"), "\n")
+cat("Wrote nteDeBERTa_RR.RData:", file.exists("nteDeBERTa_RR.RData"), "\n")
+```
+
+
+
+
+
+
+
+
+
+

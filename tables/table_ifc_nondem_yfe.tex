@@ -1,0 +1,45 @@
+
+\begingroup
+\centering
+\begin{tabular}{lccc}
+   \tabularnewline \midrule \midrule
+   Dependent Variables:                   & ipr\_tripsplus\_undisclosed\_information    & ipr\_tripsplus\_patents   & ipr\_tripsplus\_enforcement\\    
+   Model:                                 & (1)                                         & (2)                       & (3)\\  
+   \midrule
+   \emph{Variables}\\
+   ldeberta\_score                        & 0.224                                       & 0.197$^{*}$               & 0.818$^{*}$\\   
+                                          & (0.133)                                     & (0.113)                   & (0.470)\\   
+   lifc\_loan                             & 0.021$^{*}$                                 & 0.016$^{*}$               & 0.068$^{*}$\\   
+                                          & (0.012)                                     & (0.009)                   & (0.038)\\   
+   log\_gdppc                             & 0.876                                       & 0.126                     & 0.996\\   
+                                          & (1.71)                                      & (1.45)                    & (6.01)\\   
+   log\_gdpcons                           & -1.88                                       & -0.932                    & -4.40\\   
+                                          & (2.01)                                      & (1.70)                    & (7.06)\\   
+   gdpgrowth                              & 0.052$^{*}$                                 & 0.050$^{*}$               & 0.204$^{*}$\\   
+                                          & (0.030)                                     & (0.028)                   & (0.113)\\   
+   log\_import                            & -0.008                                      & -0.093                    & -0.323\\   
+                                          & (0.257)                                     & (0.260)                   & (1.05)\\   
+   log\_export                            & 0.304                                       & 0.271                     & 1.12\\   
+                                          & (0.263)                                     & (0.225)                   & (0.939)\\   
+   isds\_occurrences                      & -0.121                                      & -0.057                    & -0.272\\   
+                                          & (0.229)                                     & (0.163)                   & (0.702)\\   
+   lunga\_dist                            & -0.618                                      & -0.727                    & -2.89\\   
+                                          & (0.417)                                     & (0.469)                   & (1.86)\\   
+   ldeberta\_score $\times$ lifc\_loan    & -0.009                                      & -0.009                    & -0.035\\   
+                                          & (0.007)                                     & (0.006)                   & (0.024)\\   
+   \midrule
+   \emph{Fixed-effects}\\
+   iso3c                                  & Yes                                         & Yes                       & Yes\\  
+   year                                   & Yes                                         & Yes                       & Yes\\  
+   \midrule
+   \emph{Fit statistics}\\
+   Observations                           & 335                                         & 335                       & 335\\  
+   R$^2$                                  & 0.67777                                     & 0.82069                   & 0.78537\\  
+   Within R$^2$                           & 0.09530                                     & 0.10520                   & 0.10467\\  
+   \midrule \midrule
+   \multicolumn{4}{l}{\emph{Clustered (iso3c) standard-errors in parentheses}}\\
+   \multicolumn{4}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+\par\endgroup
+
+
