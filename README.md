@@ -27,6 +27,8 @@ source("pkg.R")
 
 Run from inside this folder so the relative file reads resolve. The script reads its raw inputs by bare filename.
 
+There is also an offline reproduction. Running `reproduce_from_analysis_data.R` rebuilds every table and figure from the included `analysis_data.csv`, with no internet connection and none of the download-required files.
+
 ## Internet access and the World Bank API
 
 The script pulls some macro indicators from the World Bank through the `WDI` package. That step needs an internet connection. If you cannot reach the World Bank API, use the provided merged data instead. `analysis_data.csv` and `nteDeBERTa_RR.RData` both contain the fully merged analysis dataset, so you can reproduce every table from them without an outside connection.
@@ -57,10 +59,12 @@ Four data sources are not shipped in this package. Three restrict redistribution
 - `WhoGov_crosssectional_V2.0.csv`. WhoGov cabinet and regime data, used to classify democracies and non-democracies. Download from https://politicscentre.nuffield.ox.ac.uk/whogov-dataset/ and cite Nyrup and Bramwell (2020).
 - `isds_cases_us_claim.csv`. Investor-state dispute cases with US claimants. Download from the UNCTAD Investment Dispute Settlement Navigator at https://investmentpolicy.unctad.org/investment-dispute-settlement, filter to US-claimant cases, and cite UNCTAD.
 
-## Generated data files
+## Generated files
 
 - `analysis_data.csv`. The fully merged analysis dataset written by the script as an open CSV extract.
 - `nteDeBERTa_RR.RData`. A saved R workspace holding every fitted object and intermediate frame from a clean run.
+- `tables/`. The regenerated LaTeX tables.
+- `figures/`. The regenerated figures.
 
 ## Output to manuscript table mapping
 
@@ -75,3 +79,13 @@ The script writes its LaTeX tables into the `tables/` subfolder. They map to the
 - `table_ifc_nondem_mundlak.tex`. The appendix identification-robustness table for the IFC x Non-democracy Mundlak specification.
 
 The two-way fixed-effects and Mundlak tables together form the appendix identification-robustness tables.
+
+## Output to manuscript figure mapping
+
+The reproduction script writes figures into the `figures/` subfolder.
+
+- `fig_marg_aid_undisclosed.png`, `fig_marg_aid_patent.png`, `fig_marg_aid_enforcement.png`. The marginal-effects plots for Aid x Democracy across the three outcomes.
+- `fig_marg_ifc_undisclosed.png`, `fig_marg_ifc_patent.png`, `fig_marg_ifc_enforcement.png`. The marginal-effects plots for IFC x Non-democracy across the three outcomes.
+- `fig_deberta_china.png`, `fig_deberta_japan.png`, `fig_deberta_eu.png`, `fig_deberta_mexico.png`, `fig_deberta_canada.png`, `fig_deberta_keycountries.png`. Descriptive DeBERTa score trend plots.
+
+The Korea and Japan NTE report images and the cross-validation figures in the manuscript are produced outside this R package and are not regenerated here.

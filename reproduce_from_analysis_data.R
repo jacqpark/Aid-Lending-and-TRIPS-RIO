@@ -22,6 +22,9 @@ suppressPackageStartupMessages({
   library(fixest)
   library(sampleSelection)
   library(texreg)
+  library(ggplot2)
+  library(marginaleffects)
+  library(dplyr)
 })
 
 # Write all output tables into the tables/ subfolder (same filenames as the
@@ -261,3 +264,202 @@ texreg(dg_models,
 cat("Wrote", op("heckman_results.tex"), "\n")
 
 cat("\nAll tables regenerated from analysis_data.csv only.\n")
+
+# =========================================================================
+# 5. Figures
+#    Ported from the plot chunks of nteDeBERTa_RR.Rmd. analysis_data.csv
+#    carries the same country / year / deberta_score / ldeberta_score columns
+#    used by those chunks, so every figure is reproduced from it alone.
+# =========================================================================
+
+fig_dir <- "figures"
+if (!dir.exists(fig_dir)) dir.create(fig_dir)
+fp <- function(f) file.path(fig_dir, f)
+
+# The single-country and key-countries chunks use the object `df` in the Rmd
+# (the unfiltered NTE panel), whose `country` column is upper-case. In
+# analysis_data.csv the same column is title-case (China, European Union, ...).
+# Match on an upper-cased helper so the Rmd's upper-case country literals select
+# exactly the same rows.
+df <- temp
+df$country_u <- toupper(df$country)
+
+# ---- 5a. Five single-country DeBERTa trend plots (base-R plot) ----------
+single_country_plots <- list(
+  china  = list(name = "CHINA",          file = "fig_deberta_china.png"),
+  japan  = list(name = "JAPAN",          file = "fig_deberta_japan.png"),
+  eu     = list(name = "EUROPEAN UNION", file = "fig_deberta_eu.png"),
+  mexico = list(name = "MEXICO",         file = "fig_deberta_mexico.png"),
+  canada = list(name = "CANADA",         file = "fig_deberta_canada.png")
+)
+
+for (sp in single_country_plots) {
+  cdf <- df %>% filter(country_u == sp$name)
+  png(fp(sp$file), width = 1200, height = 800, res = 150)
+  plot(cdf$year, cdf$deberta_score, type = "b", pch = 16)
+  dev.off()
+  cat("Wrote", fp(sp$file), "\n")
+}
+
+# ---- 5b. Key-countries trend ggplot (ctyplotdt chunk) -------------------
+ctyplotdt <- df %>%
+  distinct(country, year, .keep_all = TRUE) %>%
+  arrange(country, year) %>%
+  group_by(country) %>%
+  mutate(cumcount = n()) %>%
+  filter(
+           country_u == "RUSSIA" |
+           country_u == "CHINA" | country_u == "EUROPEAN UNION" |
+           country_u == "BRAZIL" | country_u == "JAPAN" |
+           country_u == "INDIA" | country_u == "MEXICO" )
+
+p_keycountries <- ggplot(data = ctyplotdt,
+       aes(x = year, y = deberta_score, color = country)) + geom_smooth(se = FALSE) +
+  labs(x = "Year", y = "DeBERTa score", color = "Country") + scale_color_manual(
+    values = c("red", "orange", "green", "steelblue", "cyan", "yellow", "magenta")
+  ) + theme_minimal()
+
+ggsave(filename = fp("fig_deberta_keycountries.png"), plot = p_keycountries,
+       width = 7, height = 5, dpi = 300)
+cat("Wrote", fp("fig_deberta_keycountries.png"), "\n")
+
+# ---- 5c. Rug-data subsets (obs actually used in each model) -------------
+# Reconstruct exactly as the Rmd: the model's filtered data, then the rows
+# kept by feols via obs_selection.
+tempA  <- temp %>% filter(oecd1994 == 0 & iso3c != "EUU") %>% filter(democ == "Democracy")
+tempA  <- tempA[unlist(feols_trips_aid1$obs_selection), ]
+tempA1 <- temp %>% filter(oecd1994 == 0 & iso3c != "EUU") %>% filter(democ == "Democracy")
+tempA1 <- tempA1[unlist(feols_trips_aid1p$obs_selection), ]
+tempB  <- temp %>% filter(oecd1994 == 0 & iso3c != "EUU") %>% filter(democ == "Democracy")
+tempB  <- tempB[unlist(feols_trips_aid1e$obs_selection), ]
+
+tempC  <- temp %>% filter(oecd1994 == 0 & iso3c != "EUU" & iso3c != "RUS") %>% filter(democ == "Non-democracy")
+tempC  <- tempC[unlist(feols_trips_ifc1$obs_selection), ]
+tempC1 <- temp %>% filter(oecd1994 == 0 & iso3c != "EUU" & iso3c != "RUS") %>% filter(democ == "Non-democracy")
+tempC1 <- tempC1[unlist(feols_trips_ifc1p$obs_selection), ]
+tempD  <- temp %>% filter(oecd1994 == 0 & iso3c != "EUU" & iso3c != "RUS") %>% filter(democ == "Non-democracy")
+tempD  <- tempD[unlist(feols_trips_ifc1e$obs_selection), ]
+
+# ---- 5d. Three Aid marginal-effects plots -------------------------------
+p_aid_u <- plot_comparisons(
+  feols_trips_aid1,
+  variables = list("laid_usd" = "sd"),
+  condition = "ldeberta_score",
+  conf_level = 0.95
+) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempA, aes(x = ldeberta_score),
+           inherit.aes = FALSE, color = "black", alpha = 0.4,
+           length = unit(0.06, "npc")) +
+  theme_classic() +
+  xlab("DeBERTa Score") +
+  ylab(bquote(Delta ~ ("Undisclosed info"))) +
+  theme(
+    panel.background = element_rect(fill = "transparent"),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    legend.position = "none"
+  )
+ggsave(filename = fp("fig_marg_aid_undisclosed.png"), plot = p_aid_u,
+       width = 6, height = 4, dpi = 300)
+cat("Wrote", fp("fig_marg_aid_undisclosed.png"), "\n")
+
+p_aid_p <- plot_comparisons(
+  feols_trips_aid1p,
+  variables = list("laid_usd" = "sd"),
+  condition = "ldeberta_score",
+  conf_level = 0.9
+) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempA1, aes(x = ldeberta_score),
+           inherit.aes = FALSE, color = "black", alpha = 0.4,
+           length = unit(0.06, "npc")) +
+  theme_classic() +
+  xlab("DeBERTa Score") +
+  ylab(bquote(Delta ~ ("Patent"))) +
+  theme(
+    panel.background = element_rect(fill = "transparent"),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    legend.position = "none"
+  )
+ggsave(filename = fp("fig_marg_aid_patent.png"), plot = p_aid_p,
+       width = 6, height = 4, dpi = 300)
+cat("Wrote", fp("fig_marg_aid_patent.png"), "\n")
+
+p_aid_e <- plot_comparisons(
+  feols_trips_aid1e,
+  variables = list("laid_usd" = "sd"),
+  condition = "ldeberta_score",
+  conf_level = 0.9
+) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempB, aes(x = ldeberta_score),
+           inherit.aes = FALSE, color = "black", alpha = 0.4,
+           length = unit(0.06, "npc")) +
+  theme_classic() +
+  xlab("DeBERTa Score") +
+  ylab(bquote(Delta ~ ("Enforcement"))) +
+  theme(
+    panel.background = element_rect(fill = "transparent"),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    legend.position = "none"
+  )
+ggsave(filename = fp("fig_marg_aid_enforcement.png"), plot = p_aid_e,
+       width = 6, height = 4, dpi = 300)
+cat("Wrote", fp("fig_marg_aid_enforcement.png"), "\n")
+
+# ---- 5e. Three IFC marginal-effects plots -------------------------------
+p_ifc_u <- plot_comparisons(feols_trips_ifc1,
+            variables = list("lifc_loan" = "sd"),
+            condition = c("ldeberta_score"),
+            conf_level = 0.9) +
+  theme_classic() + xlab("DeBERTa score") + ylab(bquote(Delta ~ ("Undisclosed info"))) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempC, aes(x = ldeberta_score), color = "black", alpha = .4, length = unit(0.06, "npc")) +
+  theme(
+         panel.background = element_rect(fill = 'transparent'),
+         plot.background = element_rect(fill = 'transparent', color = NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.position = "none"
+       )
+ggsave(filename = fp("fig_marg_ifc_undisclosed.png"), plot = p_ifc_u,
+       width = 6, height = 4, dpi = 300)
+cat("Wrote", fp("fig_marg_ifc_undisclosed.png"), "\n")
+
+p_ifc_p <- plot_comparisons(feols_trips_ifc1p,
+            variables = list("lifc_loan" = "sd"),
+            condition = c("ldeberta_score"),
+            conf_level = 0.9) +
+  theme_classic() + xlab("DeBERTa score") + ylab(bquote(Delta ~ ("Patent"))) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempC1, aes(x = ldeberta_score), color = "black", alpha = .4, length = unit(0.06, "npc")) +
+  theme(
+         panel.background = element_rect(fill = 'transparent'),
+         plot.background = element_rect(fill = 'transparent', color = NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.position = "none"
+       )
+ggsave(filename = fp("fig_marg_ifc_patent.png"), plot = p_ifc_p,
+       width = 6, height = 4, dpi = 300)
+cat("Wrote", fp("fig_marg_ifc_patent.png"), "\n")
+
+p_ifc_e <- plot_comparisons(feols_trips_ifc1e,
+            variables = list("lifc_loan" = "sd"),
+            condition = c("ldeberta_score"),
+            conf_level = 0.9) +
+  theme_classic() + xlab("DeBERTa score") + ylab(bquote(Delta ~ ("Enforcement"))) +
+  geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+  geom_rug(data = tempD, aes(x = ldeberta_score), color = "black", alpha = .4, length = unit(0.06, "npc")) +
+  theme(
+         panel.background = element_rect(fill = 'transparent'),
+         plot.background = element_rect(fill = 'transparent', color = NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.position = "none"
+       )
+ggsave(filename = fp("fig_marg_ifc_enforcement.png"), plot = p_ifc_e,
+       width = 6, height = 4, dpi = 300)
+cat("Wrote", fp("fig_marg_ifc_enforcement.png"), "\n")
+
+cat("\nAll 12 figures written to", fig_dir, "/ from analysis_data.csv only.\n")
