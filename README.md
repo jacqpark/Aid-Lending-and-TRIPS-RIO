@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/1257996976.svg)](https://doi.org/10.5281/zenodo.20534622)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20534623.svg)](https://doi.org/10.5281/zenodo.20534623)
 
 # Replication Package
 
