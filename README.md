@@ -15,19 +15,26 @@ Install any missing packages with `install.packages()` before running. The `dest
 
 ## How to run
 
-You can run the analysis in either of two ways.
+### Fastest path. Offline fallback with no external sources
 
-- Open `nteDeBERTa_RR.Rmd` in RStudio and knit it.
-- Purl the script to plain R and source it from this folder.
+Run `reproduce_from_analysis_data.R` from inside this folder. This single script rebuilds every table and figure in the paper from the included `analysis_data.csv` alone. It needs no internet connection, no World Bank API call, no `desta` or `WDI` package, and none of the download-required files listed below. It only needs the `fixest`, `sampleSelection`, `texreg`, `ggplot2`, and `marginaleffects` packages.
+
+```r
+source("reproduce_from_analysis_data.R")
+```
+
+It writes all seven LaTeX tables to `tables/` and all six figures to `figures/`. See the output mappings near the end of this file for which output corresponds to which manuscript exhibit.
+
+### Full pipeline from raw inputs
+
+To rebuild the merged dataset from the raw sources, run the main script instead. Open `nteDeBERTa_RR.Rmd` in RStudio and knit it, or purl it to plain R and source it from this folder.
 
 ```r
 knitr::purl("nteDeBERTa_RR.Rmd", output = "pkg.R", documentation = 0)
 source("pkg.R")
 ```
 
-Run from inside this folder so the relative file reads resolve. The script reads its raw inputs by bare filename.
-
-There is also an offline reproduction. Running `reproduce_from_analysis_data.R` rebuilds every table and figure from the included `analysis_data.csv`, with no internet connection and none of the download-required files.
+Run from inside this folder so the relative file reads resolve. The script reads its raw inputs by bare filename. This path pulls some macro indicators from the World Bank through `WDI`, so it needs an internet connection, and it expects the four download-required sources to be present.
 
 ## Internet access and the World Bank API
 
