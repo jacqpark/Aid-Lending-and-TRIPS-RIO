@@ -19,19 +19,19 @@ Install any missing packages with `install.packages()` before running. The `dest
 
 Run `reproduce_from_analysis_data.R` from inside this folder. This single script rebuilds every table and figure in the paper from the included `analysis_data.csv` alone. It needs no internet connection, no World Bank API call, no `desta` or `WDI` package, and none of the download-required files listed below. It only needs the `fixest`, `sampleSelection`, `texreg`, `ggplot2`, and `marginaleffects` packages.
 
-The script reads `analysis_data.csv` by bare filename and writes outputs to `tables/` and `figures/` by relative path. The working directory must be this repo folder. Pick one of the two forms below.
+The script reads `analysis_data.csv` by bare filename and writes outputs to `tables/` and `figures/` by relative path. The working directory must be whatever folder you downloaded or extracted this package into. The paths below are examples. Replace `/path/to/package` with your own location. Pick one of the two forms below.
 
-From a terminal, run the script directly with `Rscript`. The `cd` sets the working directory.
+From a terminal, run the script directly with `Rscript`. The `cd` sets the working directory to the folder holding the package files.
 
 ```bash
-cd ~/GitHub/Aid-Lending-and-TRIPS-RIO
+cd /path/to/package
 Rscript reproduce_from_analysis_data.R
 ```
 
 From an interactive R or RStudio session, set the working directory first, then source the script.
 
 ```r
-setwd("~/GitHub/Aid-Lending-and-TRIPS-RIO")
+setwd("/path/to/package")
 source("reproduce_from_analysis_data.R")
 ```
 
