@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/1257996976.svg)](https://doi.org/10.5281/zenodo.20534622)
+
 # Replication Package
 
 ## Aid, Lending, and TRIPS
