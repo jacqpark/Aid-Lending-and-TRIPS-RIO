@@ -6,7 +6,7 @@
 
 This package replicates the empirical analysis for the paper on how US foreign aid and IFC lending shape developing-country TRIPS-plus intellectual property commitments. The analysis measures US trade pressure with DeBERTa stance scores drawn from National Trade Estimate reports. It then estimates how aid (in democracies) and IFC investment (in non-democracies) moderate the effect of that pressure on undisclosed information, patent, and enforcement provisions.
 
-This folder holds the cleaned analysis script, the raw input files, a fully merged analysis extract, a saved R workspace, and the regenerated LaTeX tables.
+This folder holds the cleaned analysis script, the raw input files, a fully merged analysis extract, a saved R workspace, the regenerated LaTeX tables, and the compiled Online Appendix (`Online Appendix.pdf`).
 
 ## Software requirements
 
@@ -86,6 +86,7 @@ Four data sources are not shipped in this package. Three restrict redistribution
 - `nteDeBERTa_RR.RData`. A saved R workspace holding every fitted object and intermediate frame from a clean run.
 - `tables/`. The regenerated LaTeX tables.
 - `figures/`. The regenerated figures.
+- `Online Appendix.pdf`. The compiled Online Appendix, including the cross-validation diagnostics and the supplementary specifications referenced in the manuscript.
 
 ## Output to manuscript table mapping
 

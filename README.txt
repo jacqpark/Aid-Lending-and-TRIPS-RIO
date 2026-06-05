@@ -10,7 +10,8 @@ pressure on undisclosed information, patent, and enforcement provisions.
 
 This folder holds the cleaned analysis script, the raw input files, a fully
 merged analysis extract, a saved R workspace, an offline reproduction script,
-and the regenerated LaTeX tables and figures.
+the regenerated LaTeX tables and figures, and the compiled Online Appendix
+(Online Appendix.pdf).
 
 
 ============================================================
@@ -158,6 +159,9 @@ GENERATED FILES
   intermediate frame from a clean run.
 - tables/. The regenerated LaTeX tables.
 - figures/. The regenerated figures.
+- Online Appendix.pdf. The compiled Online Appendix, including the
+  cross-validation diagnostics and the supplementary specifications referenced
+  in the manuscript.
 
 
 ============================================================
